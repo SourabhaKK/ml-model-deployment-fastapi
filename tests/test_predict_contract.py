@@ -1,6 +1,14 @@
 """
 Test predict endpoint contract.
-RED PHASE: These tests MUST FAIL because /predict is not implemented yet.
+CYCLE 1 RED PHASE: Define /predict endpoint contract.
+
+Contract Definition:
+- POST /predict
+- Request: {"features": [1.2, 3.4, 5.6]}
+- Response: {"prediction": 0} (numeric prediction value)
+- Expected status: 200 for valid requests
+
+These tests MUST FAIL because /predict endpoint is not implemented yet.
 """
 import pytest
 from fastapi.testclient import TestClient
