@@ -1,6 +1,17 @@
 """
-Test input validation.
-RED PHASE: These tests MUST FAIL because validation is not implemented yet.
+Test input validation for /predict endpoint.
+CYCLE 2 RED PHASE: Define input validation requirements.
+
+Validation Requirements:
+1. Missing features field -> HTTP 422
+2. Non-list input for features -> HTTP 422
+3. Empty list for features -> HTTP 422 (requires custom validation)
+4. Non-numeric features -> HTTP 422
+5. Validation errors return FastAPI error structure with 'detail' field
+
+Current Status:
+- Tests 1, 2, 4, 5: PASS (Pydantic built-in validation)
+- Test 3: FAIL (needs custom validation logic in GREEN phase)
 """
 import pytest
 from fastapi.testclient import TestClient
