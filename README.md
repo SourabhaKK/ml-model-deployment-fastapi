@@ -230,7 +230,7 @@ MIT License - See [LICENSE](LICENSE) file for details.
 
 **Sourabha K K**
 - GitHub: [@SourabhaKK](https://github.com/SourabhaKK)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/your-profile)
+- LinkedIn: [Your LinkedIn](https://linkedin.com/in/sourabhakk)
 
 ---
 
