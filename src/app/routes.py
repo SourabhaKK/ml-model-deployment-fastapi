@@ -1,9 +1,10 @@
 """
 API route definitions.
-CYCLE 1 GREEN PHASE: Implement /health and /predict endpoints.
+CYCLE 3 GREEN PHASE: Model dependency injection.
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from src.app.schemas import HealthResponse, PredictionRequest, PredictionResponse
+from src.app.dependencies import get_model, DummyModel
 
 router = APIRouter()
 
@@ -18,17 +19,20 @@ async def health_check() -> HealthResponse:
 
 
 @router.post("/predict", response_model=PredictionResponse, response_model_exclude_none=True)
-async def predict(request: PredictionRequest) -> PredictionResponse:
+async def predict(
+    request: PredictionRequest,
+    model: DummyModel = Depends(get_model)
+) -> PredictionResponse:
     """
-    Prediction endpoint.
-    Returns a deterministic dummy prediction (always 0).
+    Prediction endpoint with dependency-injected model.
     
     Args:
         request: PredictionRequest with features array
+        model: Injected model instance from get_model dependency
         
     Returns:
-        PredictionResponse with prediction value
+        PredictionResponse with prediction value from model
     """
-    # Dummy prediction - always return 0
-    # No real ML model implementation yet
-    return PredictionResponse(prediction=0)
+    # Use injected model to make prediction
+    prediction = model.predict(request.features)
+    return PredictionResponse(prediction=prediction)

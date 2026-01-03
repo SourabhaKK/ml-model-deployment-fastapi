@@ -10,9 +10,10 @@ Requirements:
 These tests MUST FAIL because dependency injection is not implemented yet.
 """
 import pytest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock
 from fastapi.testclient import TestClient
 from src.app.main import app
+from src.app.dependencies import get_model
 
 
 client = TestClient(app)
@@ -20,29 +21,25 @@ client = TestClient(app)
 
 def test_model_loaded_at_startup():
     """Test that model is loaded once at application startup."""
-    # This test will fail because model loading is not implemented
-    # We expect a model to be loaded and cached
-    with patch('src.app.dependencies.ModelPredictor') as mock_predictor:
-        mock_model = Mock()
-        mock_predictor.return_value = mock_model
-        
-        # In GREEN phase, model should be loaded at startup
-        # For now, this will fail
-        from src.app.dependencies import get_model
-        
-        # Model should exist
-        model = get_model()
-        assert model is not None, "Model should be loaded"
+    # Test that get_model returns a model instance
+    model = get_model()
+    assert model is not None, "Model should be loaded"
+    
+    # Test singleton behavior - same instance returned
+    model2 = get_model()
+    assert model is model2, "Should return same instance (singleton)"
 
 
 def test_predict_uses_injected_model():
     """Test that /predict endpoint uses dependency-injected model."""
-    # This test will fail because dependency injection is not implemented
-    with patch('src.app.dependencies.get_model') as mock_get_model:
-        mock_model = Mock()
-        mock_model.predict.return_value = 0.5
-        mock_get_model.return_value = mock_model
-        
+    # Create a mock model
+    mock_model = Mock()
+    mock_model.predict.return_value = 0.5
+    
+    # Override the dependency
+    app.dependency_overrides[get_model] = lambda: mock_model
+    
+    try:
         response = client.post(
             "/predict",
             json={"features": [1.0, 2.0, 3.0]}
@@ -52,18 +49,23 @@ def test_predict_uses_injected_model():
         data = response.json()
         
         # Model's predict method should have been called
-        # This will fail because we're not using dependency injection yet
         assert mock_model.predict.called, "Model predict should be called"
+        assert data["prediction"] == 0.5, "Should return mocked prediction"
+    finally:
+        # Clean up override
+        app.dependency_overrides.clear()
 
 
 def test_model_predict_called_with_features():
     """Test that model.predict is called with the correct features."""
-    # This test will fail because we're not using a real model yet
-    with patch('src.app.dependencies.get_model') as mock_get_model:
-        mock_model = Mock()
-        mock_model.predict.return_value = 0.75
-        mock_get_model.return_value = mock_model
-        
+    # Create a mock model
+    mock_model = Mock()
+    mock_model.predict.return_value = 0.75
+    
+    # Override the dependency
+    app.dependency_overrides[get_model] = lambda: mock_model
+    
+    try:
         features = [1.0, 2.0, 3.0, 4.0]
         response = client.post(
             "/predict",
@@ -73,21 +75,23 @@ def test_model_predict_called_with_features():
         assert response.status_code == 200
         
         # Verify model.predict was called with features
-        # This will fail in RED phase
         mock_model.predict.assert_called_once_with(features)
+    finally:
+        # Clean up override
+        app.dependency_overrides.clear()
 
 
 def test_model_singleton_behavior():
     """Test that the same model instance is reused across requests."""
-    # This test will fail because singleton pattern is not implemented
-    with patch('src.app.dependencies.get_model') as mock_get_model:
-        mock_model = Mock()
-        mock_get_model.return_value = mock_model
-        
-        # Make multiple requests
-        client.post("/predict", json={"features": [1.0, 2.0]})
-        client.post("/predict", json={"features": [3.0, 4.0]})
-        
-        # get_model should return the same instance
-        # This will fail because singleton is not implemented
-        assert mock_get_model.call_count >= 1, "Model should be retrieved"
+    # Make multiple requests without mocking
+    response1 = client.post("/predict", json={"features": [1.0, 2.0]})
+    response2 = client.post("/predict", json={"features": [3.0, 4.0]})
+    
+    # Both should succeed
+    assert response1.status_code == 200
+    assert response2.status_code == 200
+    
+    # Verify singleton by checking get_model returns same instance
+    model1 = get_model()
+    model2 = get_model()
+    assert model1 is model2, "Should return same model instance (singleton)"
