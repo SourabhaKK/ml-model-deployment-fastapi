@@ -1,8 +1,9 @@
 """
 FastAPI application entry point.
-RED PHASE: Empty app instance - no implementations yet.
+GREEN PHASE: Minimal app with /health endpoint wired.
 """
 from fastapi import FastAPI
+from src.app.routes import router
 
 app = FastAPI(
     title="ML Model Deployment API",
@@ -10,4 +11,5 @@ app = FastAPI(
     version="0.1.0"
 )
 
-# Routes will be added in GREEN phase
+# Include routes
+app.include_router(router)

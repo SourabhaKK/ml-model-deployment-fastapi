@@ -1,11 +1,17 @@
 """
 API route definitions.
-RED PHASE: No route implementations - tests will fail.
+GREEN PHASE: Minimal implementation of /health endpoint.
 """
 from fastapi import APIRouter
+from src.app.schemas import HealthResponse
 
 router = APIRouter()
 
-# Routes will be implemented in GREEN phase
-# /health endpoint - not yet implemented
-# /predict endpoint - not yet implemented
+
+@router.get("/health", response_model=HealthResponse)
+async def health_check() -> HealthResponse:
+    """
+    Health check endpoint.
+    Returns the health status of the API.
+    """
+    return HealthResponse(status="ok")
