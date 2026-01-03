@@ -1,14 +1,22 @@
 """
 Pydantic models for request/response validation.
-RED PHASE: Schema definitions only - no implementations.
+CYCLE 2 GREEN PHASE: Input validation via schemas.
 """
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional
 
 
 class PredictionRequest(BaseModel):
     """Request schema for prediction endpoint."""
     features: List[float] = Field(..., description="Input features for prediction")
+    
+    @field_validator('features')
+    @classmethod
+    def features_must_not_be_empty(cls, v: List[float]) -> List[float]:
+        """Validate that features list is not empty."""
+        if len(v) == 0:
+            raise ValueError('features list cannot be empty')
+        return v
     
     class Config:
         json_schema_extra = {
