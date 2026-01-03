@@ -1,8 +1,8 @@
 """
 API route definitions.
-CYCLE 3 GREEN PHASE: Model dependency injection.
+CYCLE 4 GREEN PHASE: Error handling for prediction failures.
 """
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from src.app.schemas import HealthResponse, PredictionRequest, PredictionResponse
 from src.app.dependencies import get_model, DummyModel
 
@@ -24,7 +24,7 @@ async def predict(
     model: DummyModel = Depends(get_model)
 ) -> PredictionResponse:
     """
-    Prediction endpoint with dependency-injected model.
+    Prediction endpoint with dependency-injected model and error handling.
     
     Args:
         request: PredictionRequest with features array
@@ -32,7 +32,18 @@ async def predict(
         
     Returns:
         PredictionResponse with prediction value from model
+        
+    Raises:
+        HTTPException: 500 if prediction fails
     """
-    # Use injected model to make prediction
-    prediction = model.predict(request.features)
-    return PredictionResponse(prediction=prediction)
+    try:
+        # Use injected model to make prediction
+        prediction = model.predict(request.features)
+        return PredictionResponse(prediction=prediction)
+    except Exception as e:
+        # Catch any exception during prediction and return HTTP 500
+        error_message = f"Prediction failed: {str(e)}"
+        raise HTTPException(
+            status_code=500,
+            detail=error_message
+        )
