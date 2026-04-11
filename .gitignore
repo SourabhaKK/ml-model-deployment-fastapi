@@ -1,0 +1,29 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Test cache & coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Package build artefacts
+*.egg-info/
+dist/
+build/
+
+# Environment & secrets
+.env
+.env.*
+
+# Model artefacts (never commit binary model files to git)
+*.pkl
+*.pt
+*.pth
+*.onnx
+models/
+
+# IDE
+.vscode/
+.idea/
