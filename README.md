@@ -12,6 +12,12 @@ Production-hardened FastAPI inference service demonstrating separation of traini
 graph TD
     Client(["🖥 Client"])
 
+    subgraph DEPLOYMENT ["DEPLOYMENT"]
+        GHCR["GitHub Container Registry\nGHCR — image store"]
+        EC2["AWS EC2 · eu-west-2\nt2.micro · Ubuntu 24.04"]
+        DOCKER["Docker Runtime\ncontainer · --restart unless-stopped"]
+    end
+
     subgraph MIDDLEWARE_LAYER ["MIDDLEWARE LAYER"]
         LOG["Request Logger\n(UUID · latency · X-Request-ID)"]
         RATE["Rate Limiter\nper-IP sliding window · 60 req/min"]
@@ -31,7 +37,11 @@ graph TD
         READY["GET /ready\nreadiness probe · 503 if model not loaded"]
     end
 
-    Client -->|"POST /predict"| LOG
+    GHCR -->|"docker pull"| EC2
+    EC2 -->|"docker run -p 8000:8000"| DOCKER
+    DOCKER -->|"forwards :8000"| LOG
+
+    Client -->|"HTTP :8000"| EC2
     Client -->|"GET /health"| HEALTH
     Client -->|"GET /ready"| READY
     LOG -->|"request logged"| RATE
@@ -56,6 +66,7 @@ graph TD
 ```mermaid
 sequenceDiagram
     participant Client
+    participant EC2
     participant AuthMiddleware
     participant RateLimiter
     participant RequestValidator
@@ -63,7 +74,9 @@ sequenceDiagram
     participant InferenceWorker
     participant MLModel
 
-    Client->>AuthMiddleware: POST /predict<br/>X-API-Key: <key>
+    Client->>EC2: HTTP POST 35.179.153.94:8000/predict<br/>X-API-Key: <key>
+    EC2->>AuthMiddleware: Docker runtime forwards to container :8000
+
     AuthMiddleware-->>Client: 401 Unauthorized (if key invalid)
     AuthMiddleware->>RateLimiter: key valid → forward request
 
@@ -103,6 +116,8 @@ sequenceDiagram
 - **Docker containerisation** — `python:3.11-slim`, non-root `appuser`, `docker-compose.yml` for zero-config local deployment
 - **GitHub Actions CI/CD** — automated test suite + Docker build/verify on every push and pull request to `main`
 - **28 pytest cases, 100% pass rate** — HTTP contract testing, dependency injection overrides, schema validation, error handling, integration tests
+- **Deployed to AWS EC2 (eu-west-2)** — containerised via Docker, image stored on GHCR, running with `--restart unless-stopped`
+- **Live public endpoint** — `http://35.179.153.94:8000`
 
 ---
 
@@ -200,6 +215,28 @@ Expected `/predict` response:
 
 ---
 
+## Quickstart — Live Cloud Endpoint (AWS EC2)
+
+The service is currently deployed on AWS EC2 (eu-west-2).
+
+```bash
+# Liveness check
+curl http://35.179.153.94:8000/health
+
+# Readiness check
+curl http://35.179.153.94:8000/ready
+
+# Prediction request
+curl -X POST http://35.179.153.94:8000/predict \
+  -H "X-API-Key: <api-key>" \
+  -H "Content-Type: application/json" \
+  -d '{"features": [0,1,0,1,24,0,0,1,0,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]}'
+```
+
+> The API key is required for `/predict`. Contact the repo owner for access.
+
+---
+
 ## Running Tests
 
 ```bash
@@ -240,7 +277,7 @@ This service is one component in a connected ML system:
 |---|---|---|
 | ML Training | customer-churn-prediction | scikit-learn pipeline → serialised model |
 | LLM Backend | llm-ai-basket-builder | GPT-4o-mini + Pydantic + FastAPI |
-| Model Serving | ml-model-deployment-fastapi | ← YOU ARE HERE |
+| Model Serving | ml-model-deployment-fastapi | FastAPI · Docker · AWS EC2 · live endpoint |
 | Drift Detection | ml-model-monitoring-drift-detection | PSI / KS / Chi-Square · CLI · exit codes |
 | NLP Pipeline | nlp-complaint-classification-pipeline | TF-IDF + BERT · 253 tests |
 
@@ -259,3 +296,5 @@ This service is one component in a connected ML system:
 - **Why `math.isfinite()` before serialisation** — a model returning `float('nan')` or `float('inf')` would cause `json.dumps()` to raise (strict JSON does not allow NaN/Infinity) or silently produce malformed output depending on the serialiser. The guard converts this into a controlled `ValueError` → HTTP 500 with a sanitised error message, before the response object is ever constructed.
 
 - **Why `MemoryError` is re-raised explicitly** — `MemoryError` is a subclass of `Exception`. A catch-all `except Exception` block would silently swallow it and return HTTP 500, preventing the OS OOM killer from acting and suppressing alerting. Re-raising it allows the process to crash visibly, triggering container restart policies and on-call alerts.
+
+- **Why `--restart unless-stopped`** — ensures the container automatically recovers from crashes and restarts after EC2 instance reboots, providing basic self-healing without an orchestrator like ECS or Kubernetes. Appropriate for a single-instance portfolio deployment; production scale would use ECS Fargate or Kubernetes with health-check-based rolling updates.
