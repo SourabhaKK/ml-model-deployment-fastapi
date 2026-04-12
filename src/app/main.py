@@ -3,7 +3,6 @@ FastAPI application entry point.
 GREEN PHASE: Minimal app with /health endpoint wired.
 """
 import logging
-import os
 import time
 import traceback
 import uuid
@@ -13,10 +12,12 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from src.app.config import settings
+
 # F-15: Configure structured logging once at app startup.
 # All logger calls across the codebase now emit consistently formatted JSON-like records.
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format='{"time": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s"}',
 )
 logger = logging.getLogger(__name__)
@@ -26,7 +27,7 @@ logger = logging.getLogger(__name__)
 # Set API_KEY env var to enable. Unset (default) = auth disabled for dev/tests.
 # Health and readiness probes are always exempt so load-balancers can reach them.
 # ---------------------------------------------------------------------------
-_API_KEY: str | None = os.getenv("API_KEY")
+_API_KEY: str = settings.api_key  # empty string = disabled
 
 # ---------------------------------------------------------------------------
 # F-14: Optional in-memory per-IP rate limiter (sliding window).
@@ -34,7 +35,7 @@ _API_KEY: str | None = os.getenv("API_KEY")
 # For production prefer nginx/envoy upstream rate limiting over this in-process
 # store, which does not share state across gunicorn workers (see F-08).
 # ---------------------------------------------------------------------------
-_RATE_LIMIT: int = int(os.getenv("RATE_LIMIT_PER_MINUTE", "0"))
+_RATE_LIMIT: int = settings.rate_limit_per_minute
 _rate_store: dict = defaultdict(list)
 
 

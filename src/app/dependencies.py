@@ -2,9 +2,10 @@
 Dependency injection for model loading and other shared resources.
 CYCLE 3 GREEN PHASE: Model dependency injection with singleton pattern.
 """
-import os
 import threading
 from typing import List
+
+from src.app.config import settings
 
 
 class DummyModel:
@@ -13,7 +14,7 @@ class DummyModel:
     Returns deterministic predictions without real ML logic.
     """
     # F-05: Expose model version for response tracing and rollback decisions
-    version: str = os.getenv("MODEL_VERSION", "0.1.0-dummy")
+    version: str = settings.model_version
 
     def __init__(self) -> None:
         # F-22: For real PyTorch models, call self.model.eval() here so dropout

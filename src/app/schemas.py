@@ -2,14 +2,14 @@
 Pydantic models for request/response validation.
 CYCLE 2 GREEN PHASE: Input validation via schemas.
 """
-import os
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 from typing import List, Optional
 
-# F-02: Set EXPECTED_FEATURE_COUNT to enforce the model's exact input shape.
+from src.app.config import settings
+
+# F-02: Set expected_feature_count in config to enforce the model's exact input shape.
 # Defaults to 0 (disabled) so DummyModel and tests are unaffected.
 # In production set: EXPECTED_FEATURE_COUNT=512 (or whatever your model expects).
-_EXPECTED_FEATURE_COUNT: int = int(os.getenv("EXPECTED_FEATURE_COUNT", "0"))
 
 
 class PredictionRequest(BaseModel):
@@ -24,9 +24,9 @@ class PredictionRequest(BaseModel):
         if len(v) == 0:
             raise ValueError('features list cannot be empty')
         # F-02: Enforce model input shape when configured
-        if _EXPECTED_FEATURE_COUNT > 0 and len(v) != _EXPECTED_FEATURE_COUNT:
+        if settings.expected_feature_count > 0 and len(v) != settings.expected_feature_count:
             raise ValueError(
-                f'Expected {_EXPECTED_FEATURE_COUNT} features, got {len(v)}'
+                f'Expected {settings.expected_feature_count} features, got {len(v)}'
             )
         return v
 
@@ -47,11 +47,13 @@ class PredictionResponse(BaseModel):
     """Response schema for prediction endpoint."""
     prediction: float = Field(..., description="Model prediction output")
     model_version: Optional[str] = Field(None, description="Version of the model used")
+    confidence: Optional[float] = Field(None, description="Model confidence score (0.0–1.0)")
 
     # F-26: ConfigDict replaces deprecated class Config (Pydantic v2)
     model_config = ConfigDict(json_schema_extra={
         "example": {
             "prediction": 0.85,
+            "confidence": 0.92,
             "model_version": "1.0.0"
         }
     })

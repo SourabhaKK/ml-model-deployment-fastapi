@@ -5,12 +5,12 @@ CYCLE 4 GREEN PHASE: Error handling for prediction failures.
 import asyncio
 import logging
 import math
-import os
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from src.app.schemas import HealthResponse, PredictionRequest, PredictionResponse
 from src.app.dependencies import get_model, DummyModel
+from src.app.config import settings
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -18,17 +18,17 @@ router = APIRouter()
 
 # ---------------------------------------------------------------------------
 # F-25: Circuit breaker
-# Tracks consecutive prediction failures. After CIRCUIT_BREAKER_THRESHOLD
+# Tracks consecutive prediction failures. After circuit_breaker_threshold
 # failures the circuit opens and all predict requests immediately return 503,
-# giving the model time to recover. After CIRCUIT_BREAKER_TIMEOUT seconds it
+# giving the model time to recover. After circuit_breaker_timeout seconds it
 # moves to HALF-OPEN and allows one trial request through.
 #
-# Disabled by default (CIRCUIT_BREAKER_ENABLED=false) so tests are unaffected.
+# Disabled by default (circuit_breaker_enabled=False) so tests are unaffected.
 # Enable in production: CIRCUIT_BREAKER_ENABLED=true
 # ---------------------------------------------------------------------------
-_CB_ENABLED: bool = os.getenv("CIRCUIT_BREAKER_ENABLED", "false").lower() == "true"
-_CB_THRESHOLD: int = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
-_CB_TIMEOUT: float = float(os.getenv("CIRCUIT_BREAKER_TIMEOUT", "30.0"))
+_CB_ENABLED: bool = settings.circuit_breaker_enabled
+_CB_THRESHOLD: int = 5
+_CB_TIMEOUT: float = 30.0
 
 
 class _CircuitBreaker:
@@ -98,7 +98,7 @@ async def predict(
         model: Injected model instance from get_model dependency
 
     Returns:
-        PredictionResponse with prediction value and model version
+        PredictionResponse with prediction value, optional confidence, and model version
 
     Raises:
         HTTPException: 500 if prediction fails or times out
@@ -131,6 +131,19 @@ async def predict(
         if not math.isfinite(prediction):
             raise ValueError("Model returned a non-finite value")
 
+        # Task 2: Attempt predict_proba for confidence score if available.
+        # DummyModel does not implement predict_proba — returns None gracefully.
+        confidence = None
+        if hasattr(model, "predict_proba"):
+            try:
+                proba = await asyncio.wait_for(
+                    loop.run_in_executor(None, model.predict_proba, request.features),
+                    timeout=5.0
+                )
+                confidence = float(proba.max())
+            except Exception:
+                confidence = None
+
         if _CB_ENABLED:
             _circuit_breaker.record_success()
 
@@ -139,7 +152,11 @@ async def predict(
         raw_version = getattr(model, "version", None)
         model_version = raw_version if isinstance(raw_version, str) else None
 
-        return PredictionResponse(prediction=prediction, model_version=model_version)
+        return PredictionResponse(
+            prediction=prediction,
+            confidence=confidence,
+            model_version=model_version,
+        )
 
     except asyncio.TimeoutError:
         if _CB_ENABLED:
