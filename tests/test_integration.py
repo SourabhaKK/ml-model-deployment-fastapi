@@ -53,9 +53,12 @@ def test_full_api_prediction_flow():
     
     # Verify prediction value (dummy model returns 0.0)
     assert data["prediction"] == 0.0
-    
-    # model_version should not be present (excluded when None)
-    assert "model_version" not in data
+
+    # F-05 fix: model_version is now always populated from MODEL_VERSION env var.
+    # It should be present and be a non-empty string.
+    assert "model_version" in data
+    assert isinstance(data["model_version"], str)
+    assert len(data["model_version"]) > 0
 
 
 def test_full_api_validation_flow():

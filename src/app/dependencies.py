@@ -15,6 +15,13 @@ class DummyModel:
     # F-05: Expose model version for response tracing and rollback decisions
     version: str = os.getenv("MODEL_VERSION", "0.1.0-dummy")
 
+    def __init__(self) -> None:
+        # F-22: For real PyTorch models, call self.model.eval() here so dropout
+        # and batch-norm layers switch to inference mode. Without it, the same
+        # input returns different predictions on every call (non-deterministic).
+        # Pair with torch.no_grad() inside predict() to avoid gradient tracking.
+        pass
+
     def predict(self, features: List[float]) -> float:
         """
         Make a deterministic dummy prediction.
@@ -24,8 +31,15 @@ class DummyModel:
 
         Returns:
             Deterministic prediction value (always 0.0)
+
+        Note (F-21): Always cast the raw model output to Python float before
+        returning. sklearn's model.predict() returns numpy.ndarray, not float.
+        Failing to cast causes json serialisation to fail or Pydantic to coerce
+        unpredictably. Pattern: return float(self.model.predict(X)[0])
         """
-        return 0.0
+        # F-21: explicit float() cast — ensures a plain Python float is returned
+        # even when a real model returns a numpy scalar or single-element array.
+        return float(0.0)
 
 
 # Singleton instance and lock for thread-safe initialisation
