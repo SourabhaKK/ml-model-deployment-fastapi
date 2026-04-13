@@ -10,7 +10,7 @@ services:
       - LOG_LEVEL=INFO
       - RATE_LIMIT_PER_MINUTE=60
       - CIRCUIT_BREAKER_ENABLED=false
-      - EXPECTED_FEATURE_COUNT=0
+      - EXPECTED_FEATURE_COUNT=51
     volumes:
       - ./models:/app/models
     restart: unless-stopped

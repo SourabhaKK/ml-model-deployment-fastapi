@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # Model config
     model_version: str = "0.1.0"
-    model_path: str = "models/churn_model.pkl"
+    model_path: str = "models/churn_model.joblib"
 
     # Logging
     log_level: str = "INFO"
@@ -19,14 +19,14 @@ class Settings(BaseSettings):
     # Auth
     api_key: str = ""
 
-    # Rate limiting
-    rate_limit_per_minute: int = 60
+    # Rate limiting (0 = disabled; enable in production via env var)
+    rate_limit_per_minute: int = 0
 
     # Circuit breaker
     circuit_breaker_enabled: bool = False
 
     # Input validation
-    expected_feature_count: int = 0  # 0 = disabled
+    expected_feature_count: int = 51
 
 
 settings = Settings()

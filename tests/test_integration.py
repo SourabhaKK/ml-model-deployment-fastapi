@@ -12,6 +12,11 @@ from src.app.main import app
 
 client = TestClient(app)
 
+# 51-feature vector matching the churn model's expected input shape
+FEATURES_51 = [0, 1, 0, 1, 24, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+
 
 def test_full_api_health_check():
     """
@@ -19,11 +24,11 @@ def test_full_api_health_check():
     Tests the complete flow with no mocking.
     """
     response = client.get("/health")
-    
+
     # Verify response
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
-    
+
     data = response.json()
     assert data == {"status": "ok"}
 
@@ -34,25 +39,20 @@ def test_full_api_prediction_flow():
     Tests the complete flow: request → validation → model → response.
     Minimal mocking - uses real app components.
     """
-    # Valid prediction request
-    request_data = {
-        "features": [1.0, 2.0, 3.0, 4.0, 5.0]
-    }
-    
-    response = client.post("/predict", json=request_data)
-    
+    response = client.post("/predict", json={"features": FEATURES_51})
+
     # Verify response
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/json"
-    
+
     data = response.json()
-    
+
     # Verify response structure
     assert "prediction" in data
     assert isinstance(data["prediction"], (int, float))
-    
-    # Verify prediction value (dummy model returns 0.0)
-    assert data["prediction"] == 0.0
+
+    # Real churn model returns 0.0 or 1.0 (binary classification)
+    assert data["prediction"] in (0.0, 1.0), "Prediction should be binary churn class"
 
     # F-05 fix: model_version is now always populated from MODEL_VERSION env var.
     # It should be present and be a non-empty string.
@@ -70,15 +70,15 @@ def test_full_api_validation_flow():
     request_data = {
         "features": []
     }
-    
+
     response = client.post("/predict", json=request_data)
-    
+
     # Verify validation error
     assert response.status_code == 422
-    
+
     data = response.json()
     assert "detail" in data
-    
+
     # Verify error details contain validation information
     assert isinstance(data["detail"], list)
     assert len(data["detail"]) > 0
@@ -90,19 +90,13 @@ def test_full_api_multiple_requests():
     Verifies that the API handles multiple requests correctly
     and maintains state properly (singleton model).
     """
-    # Make multiple prediction requests
-    requests = [
-        {"features": [1.0, 2.0]},
-        {"features": [3.0, 4.0, 5.0]},
-        {"features": [6.0, 7.0, 8.0, 9.0]},
-    ]
-    
-    for request_data in requests:
-        response = client.post("/predict", json=request_data)
-        
+    # Make multiple prediction requests — all must use 51 features
+    for _ in range(3):
+        response = client.post("/predict", json={"features": FEATURES_51})
+
         assert response.status_code == 200
         data = response.json()
-        assert data["prediction"] == 0.0
+        assert data["prediction"] in (0.0, 1.0)
 
 
 def test_full_api_health_and_predict():
@@ -114,15 +108,15 @@ def test_full_api_health_and_predict():
     health_response = client.get("/health")
     assert health_response.status_code == 200
     assert health_response.json()["status"] == "ok"
-    
+
     # Then make a prediction
     predict_response = client.post(
         "/predict",
-        json={"features": [1.0, 2.0, 3.0]}
+        json={"features": FEATURES_51}
     )
     assert predict_response.status_code == 200
     assert "prediction" in predict_response.json()
-    
+
     # Check health again
     health_response2 = client.get("/health")
     assert health_response2.status_code == 200
@@ -137,11 +131,11 @@ def test_full_api_response_headers():
     health_response = client.get("/health")
     assert "content-type" in health_response.headers
     assert health_response.headers["content-type"] == "application/json"
-    
+
     # Test predict endpoint headers
     predict_response = client.post(
         "/predict",
-        json={"features": [1.0, 2.0]}
+        json={"features": FEATURES_51}
     )
     assert "content-type" in predict_response.headers
     assert predict_response.headers["content-type"] == "application/json"

@@ -9,8 +9,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application source
 COPY src/ ./src/
 
-# Create models directory (populated at runtime via volume or COPY)
-RUN mkdir -p models
+# Bake model artifact into image (churn_model.joblib, ~5MB)
+COPY models/ ./models/
 
 EXPOSE 8000
 

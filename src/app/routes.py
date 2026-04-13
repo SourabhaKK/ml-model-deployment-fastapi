@@ -9,7 +9,7 @@ import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from src.app.schemas import HealthResponse, PredictionRequest, PredictionResponse
-from src.app.dependencies import get_model, DummyModel
+from src.app.dependencies import get_model, ChurnModel
 from src.app.config import settings
 
 logger = logging.getLogger(__name__)
@@ -72,7 +72,7 @@ async def health_check() -> HealthResponse:
 
 
 @router.get("/ready", response_model=HealthResponse)
-async def readiness_check(model: DummyModel = Depends(get_model)) -> HealthResponse:
+async def readiness_check(model: ChurnModel = Depends(get_model)) -> HealthResponse:
     """
     F-17: Readiness probe — returns ok only when the model is loaded.
     Configure Kubernetes readinessProbe on /ready, not /health.
@@ -87,7 +87,7 @@ async def readiness_check(model: DummyModel = Depends(get_model)) -> HealthRespo
 async def predict(
     request: PredictionRequest,
     http_request: Request,
-    model: DummyModel = Depends(get_model)
+    model: ChurnModel = Depends(get_model)
 ) -> PredictionResponse:
     """
     Prediction endpoint with dependency-injected model and error handling.
@@ -140,7 +140,7 @@ async def predict(
                     loop.run_in_executor(None, model.predict_proba, request.features),
                     timeout=5.0
                 )
-                confidence = float(proba.max())
+                confidence = float(proba[0][1])
             except Exception:
                 confidence = None
 

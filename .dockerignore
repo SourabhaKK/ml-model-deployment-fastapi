@@ -7,5 +7,3 @@ __pycache__
 tests/
 *.md
 .pytest_cache
-*.pkl
-*.joblib

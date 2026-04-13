@@ -37,6 +37,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # MEDIUM-3 FIX: churn_model.joblib is gitignored and not present after checkout.
+      # The Dockerfile contains "COPY models/ ./models/" — this would fail on a fresh
+      # checkout without this step. Download the artefact from GHCR before building.
+      # MODEL_ARTIFACT_URL must be set as a GitHub Actions repository secret pointing
+      # to the versioned .joblib file (e.g. an S3 pre-signed URL or GHCR artefact URL).
+      - name: Download model artefact
+        run: |
+          mkdir -p models
+          curl -L -o models/churn_model.joblib "${{ secrets.MODEL_ARTIFACT_URL }}"
+
       - name: Build Docker image
         run: docker build -t ml-api:latest .
 
@@ -47,3 +57,4 @@ jobs:
           curl -f http://localhost:8000/health || (docker logs ml-api-test && exit 1)
           docker stop ml-api-test
           docker rm ml-api-test
+

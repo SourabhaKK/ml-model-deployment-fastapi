@@ -1,68 +1,64 @@
 """
-Dependency injection for model loading and other shared resources.
-CYCLE 3 GREEN PHASE: Model dependency injection with singleton pattern.
+Dependency injection for model loading.
+Production: loads churn RandomForestClassifier from joblib artifact.
 """
+import logging
 import threading
 from typing import List
 
+import joblib
+import numpy as np
+
 from src.app.config import settings
 
+logger = logging.getLogger(__name__)
 
-class DummyModel:
+
+class ChurnModel:
     """
-    Dummy model for testing dependency injection.
-    Returns deterministic predictions without real ML logic.
+    Wraps the trained RandomForestClassifier from the churn prediction pipeline.
+    Loaded from a joblib artifact dict produced by scripts/export_model.py in
+    the customer-churn-prediction-ml repo.
     """
-    # F-05: Expose model version for response tracing and rollback decisions
-    version: str = settings.model_version
 
     def __init__(self) -> None:
-        # F-22: For real PyTorch models, call self.model.eval() here so dropout
-        # and batch-norm layers switch to inference mode. Without it, the same
-        # input returns different predictions on every call (non-deterministic).
-        # Pair with torch.no_grad() inside predict() to avoid gradient tracking.
-        pass
+        logger.info("Loading churn model from %s", settings.model_path)
+        artifact = joblib.load(settings.model_path)
+        self._model = artifact["model"]
+        self.version: str = artifact["model_version"]
+        self.feature_count: int = artifact["feature_count"]
+        logger.info(
+            "Churn model loaded — version=%s feature_count=%d",
+            self.version, self.feature_count
+        )
 
     def predict(self, features: List[float]) -> float:
         """
-        Make a deterministic dummy prediction.
-
-        Args:
-            features: List of input features
-
-        Returns:
-            Deterministic prediction value (always 0.0)
-
-        Note (F-21): Always cast the raw model output to Python float before
-        returning. sklearn's model.predict() returns numpy.ndarray, not float.
-        Failing to cast causes json serialisation to fail or Pydantic to coerce
-        unpredictably. Pattern: return float(self.model.predict(X)[0])
+        Run inference. Returns prediction as Python float.
+        sklearn returns numpy scalar — explicit cast prevents JSON serialisation errors.
         """
-        # F-21: explicit float() cast — ensures a plain Python float is returned
-        # even when a real model returns a numpy scalar or single-element array.
-        return float(0.0)
+        X = np.array([features])           # shape (1, feature_count)
+        return float(self._model.predict(X)[0])
+
+    def predict_proba(self, features: List[float]) -> np.ndarray:
+        """
+        Return class probability array of shape (1, 2).
+        Index [0][1] is the probability of churn (class 1).
+        """
+        X = np.array([features])           # shape (1, feature_count)
+        return self._model.predict_proba(X)
 
 
-# Singleton instance and lock for thread-safe initialisation
+# Singleton + thread-safe initialisation (F-06)
 _model_instance = None
-# F-06: threading.Lock ensures only one thread initialises the model,
-# preventing double-instantiation under concurrent startup (double-checked locking pattern).
 _model_lock = threading.Lock()
 
 
-def get_model() -> DummyModel:
-    """
-    Get the model instance (singleton pattern).
-    Model is loaded once and cached for reuse.
-
-    Returns:
-        DummyModel instance
-    """
+def get_model() -> ChurnModel:
+    """Return the ChurnModel singleton, initialising it on first call."""
     global _model_instance
-
     if _model_instance is None:
         with _model_lock:
-            if _model_instance is None:  # re-check inside lock
-                _model_instance = DummyModel()
-
+            if _model_instance is None:
+                _model_instance = ChurnModel()
     return _model_instance
