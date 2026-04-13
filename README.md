@@ -75,7 +75,7 @@ sequenceDiagram
     participant InferenceWorker
     participant ChurnModel
 
-    Client->>EC2: HTTP POST 35.179.153.94:8000/predict<br/>X-API-Key: &lt;key&gt;
+    Client->>EC2: HTTP POST 35.179.153.94:8000/predict<br/>X-API-Key: [api-key]
     EC2->>AuthMiddleware: Docker runtime forwards to container :8000
 
     AuthMiddleware-->>Client: 401 Unauthorized (if key invalid or missing)
@@ -99,7 +99,7 @@ sequenceDiagram
     Note over InferenceWorker: float() cast · math.isfinite() guard
     InferenceWorker-->>Client: 500 (NaN/Inf or model error)
 
-    InferenceWorker->>Client: 200 OK<br/>{"prediction": 0.0, "confidence": 0.183, "model_version": "1.0.0"}<br/>X-Request-ID: &lt;uuid&gt;
+    InferenceWorker->>Client: 200 OK<br/>{"prediction": 0.0, "confidence": 0.183, "model_version": "1.0.0"}<br/>X-Request-ID: [uuid]
 ```
 
 ---
