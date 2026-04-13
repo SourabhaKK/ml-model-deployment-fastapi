@@ -37,15 +37,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      # MEDIUM-3 FIX: churn_model.joblib is gitignored and not present after checkout.
-      # The Dockerfile contains "COPY models/ ./models/" — this would fail on a fresh
-      # checkout without this step. Download the artefact from GHCR before building.
-      # MODEL_ARTIFACT_URL must be set as a GitHub Actions repository secret pointing
-      # to the versioned .joblib file (e.g. an S3 pre-signed URL or GHCR artefact URL).
-      - name: Download model artefact
+      # CI FIX: generate a minimal synthetic artifact instead of downloading
+      # the real model (which is gitignored and has no stored secret URL).
+      # The synthetic model has identical artifact structure to the real one
+      # (keys: model, feature_count, model_version) so the container starts
+      # and serves predictions correctly — only the weights differ.
+      - name: Generate synthetic model for CI build
         run: |
-          mkdir -p models
-          curl -L -o models/churn_model.joblib "${{ secrets.MODEL_ARTIFACT_URL }}"
+          pip install scikit-learn joblib numpy
+          python scripts/generate_ci_model.py
 
       - name: Build Docker image
         run: docker build -t ml-api:latest .
