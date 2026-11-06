@@ -7,7 +7,7 @@ pydantic-settings==2.16.2
 # ML inference
 joblib>=1.6.0
 numpy>=2.2.6
-scikit-learn>=1.3.0
+scikit-learn>=1.7.2
 
 # Testing
 pytest==9.2.0
