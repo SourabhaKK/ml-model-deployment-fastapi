@@ -31,3 +31,11 @@ models/
 # IDE
 .vscode/
 .idea/
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+service-account*.json
