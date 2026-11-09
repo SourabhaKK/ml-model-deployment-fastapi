@@ -2,12 +2,11 @@
 Centralised application configuration via pydantic-settings.
 All environment variable access must go through this module.
 """
-from pydantic_settings import BaseSettings
-from pydantic import ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
-    model_config = ConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     # Model config
     model_version: str = "0.1.0"

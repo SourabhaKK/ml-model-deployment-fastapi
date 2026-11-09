@@ -23,6 +23,8 @@ class ChurnModel:
 
     def __init__(self) -> None:
         logger.info("Loading churn model from %s", settings.model_path)
+        # joblib files are pickles and can run code when loaded. Only point
+        # MODEL_PATH at a file you produced yourself, never one from outside.
         artifact = joblib.load(settings.model_path)
         self._model = artifact["model"]
         self.version: str = artifact["model_version"]
